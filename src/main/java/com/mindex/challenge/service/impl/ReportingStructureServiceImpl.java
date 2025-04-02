@@ -2,11 +2,10 @@ package com.mindex.challenge.service.impl;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.http.ResponseEntity;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import com.mindex.challenge.data.*;
 import com.mindex.challenge.service.*;
-import org.springframework.web.client.RestTemplate;
 
 // for creating our queue
 import java.util.ArrayList;
@@ -25,32 +24,34 @@ public class ReportingStructureServiceImpl implements ReportingStructureService 
 
     private static final Logger LOG = LoggerFactory.getLogger(ReportingStructureServiceImpl.class);
 
+    @Autowired
+    private EmployeeService employeeService;
+
     /**
-     * Finds the proper number of reports of the given {@linkplain Employee employee}
-     *
-     * @param employeeId The id of the {@link Employee employee}
-     * @return  A {@link ReportingStructure object} for that {@link Employee employee}
+     * {@inheritDoc}
      */
     @Override
     public ReportingStructure getReportingStructure(String employeeId) {
         LOG.debug("Obtaining Reporting Structure for employee with id [{}]", employeeId);
 
         try {
-            ResponseEntity<Employee> employeeResponseEntity =
-                    new RestTemplate().getForEntity(employeeId, Employee.class);
-            Employee employee = employeeResponseEntity.getBody();
+            Employee employee = employeeService.read(employeeId);
+
+            // should never be null, read already returns exception if so
+            assert employee != null;
 
             ReportingStructure reportingStructure = new ReportingStructure();
             reportingStructure.setEmployee(employee);
 
-            // should never be null, load already returns exception if so
-            assert employee != null;
+            // if the employee has no reports we get 0 right away
+            // may be an optimization to 'skip' the call in this case
             reportingStructure.setNumberOfReports(getNumberOfReports(employee));
 
             return reportingStructure;
         }
         catch (Exception e) {
             // Employee read exception throws us a runtime exception with
+            // Will also catch our exception for
             // an error message already
             LOG.error(e.getMessage());
         }
@@ -66,8 +67,8 @@ public class ReportingStructureServiceImpl implements ReportingStructureService 
      * @param employee {@link Employee employee} object of our target
      * @return integer representing the total number of reports
      */
-    private int getNumberOfReports(Employee employee) {
-        if (employee.getDirectReports().isEmpty()) {
+    private int getNumberOfReports(Employee employee) throws RuntimeException {
+        if (employee.getDirectReports() == null || employee.getDirectReports().isEmpty()) {
             return 0;
         }
 
@@ -88,11 +89,26 @@ public class ReportingStructureServiceImpl implements ReportingStructureService 
 
             String id = pendingIds.poll();
 
+            // On the first run, this just gets our first employee again.
+            // For the rest, it ensures the object exists.
+            // If not, it will pass the runtime exception to the parent
+            employee = employeeService.read(id);
+
             seenIds.add(id);
+
+            if (employee.getDirectReports() == null || employee.getDirectReports().isEmpty()) {
+                continue;
+            }
 
             for (Employee child : employee.getDirectReports()) {
                 // ensure we add only distinct employees
                 if (seenIds.contains(child.getEmployeeId())) {
+                    continue;
+                }
+
+                // if a parent has the same child node twice
+                // it would be in pendingIds but not seen
+                if (pendingIds.contains(child.getEmployeeId())) {
                     continue;
                 }
 
