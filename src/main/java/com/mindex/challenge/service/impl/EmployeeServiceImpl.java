@@ -22,6 +22,9 @@ public class EmployeeServiceImpl implements EmployeeService {
         LOG.debug("Creating employee [{}]", employee);
 
         employee.setEmployeeId(UUID.randomUUID().toString());
+        // should probably check if rd already exists.
+        // while very low % chance, could happen in larger databases
+        // code shouldn't be luck based
         employeeRepository.insert(employee);
 
         return employee;
