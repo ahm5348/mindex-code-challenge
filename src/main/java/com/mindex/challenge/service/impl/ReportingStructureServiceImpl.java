@@ -18,7 +18,6 @@ import java.util.Queue;
  *
  * @author Aidan Mayes Poduslo
  */
-
 @Service
 public class ReportingStructureServiceImpl implements ReportingStructureService {
 
