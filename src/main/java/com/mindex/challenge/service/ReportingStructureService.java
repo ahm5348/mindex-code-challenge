@@ -3,6 +3,10 @@ package com.mindex.challenge.service;
 import com.mindex.challenge.data.Employee;
 import com.mindex.challenge.data.ReportingStructure;
 
+/**
+ * ReportingStructureService is the interface
+ * for the REST endpoints for the ReportingStructure
+ */
 public interface ReportingStructureService {
 
     /**
